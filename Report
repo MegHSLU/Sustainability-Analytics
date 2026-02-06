@@ -1,0 +1,11 @@
+<Center>
+#Tourism in Luzern
+---
+**Sustainability Analytics Project**
+*Meghan Hutton, Rita Ahlborn, Moritz Pfenninger, Aishwarya Patil*
+</Center>
+
+'''{css, echo=FALSE}
+P{ text-align: justify; }
+center P{ text-align: center; }
+'''
