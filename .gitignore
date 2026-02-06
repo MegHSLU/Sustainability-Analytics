@@ -1,0 +1,25 @@
+# RMarkdown output files
+*.html
+*.pdf
+*.knit.md
+
+# R related
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+# Data files (if sensitive)
+# *.csv
+# *.xlsx
+
+# Temporary files
+*.tmp
+*~
+.DS_Store
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo

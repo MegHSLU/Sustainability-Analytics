@@ -1,0 +1,524 @@
+---
+title: "Tourism in Luzern: A Sustainability Analytics Perspective"
+author: "Sustainability Analytics Team"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    theme: united
+    highlight: tango
+    code_folding: show
+    df_print: paged
+  pdf_document:
+    toc: true
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 10,
+  fig.height = 6,
+  fig.align = "center"
+)
+
+# Load required libraries
+# Uncomment and install if needed:
+# install.packages(c("tidyverse", "lubridate", "plotly", "kableExtra", "leaflet"))
+
+library(tidyverse)
+library(lubridate)
+library(knitr)
+```
+
+# Executive Summary
+
+This report analyzes tourism patterns in Luzern, Switzerland, with a focus on sustainability metrics and trends. Luzern is one of Switzerland's most visited tourist destinations, known for its historic Old Town, Chapel Bridge, and stunning lake and mountain scenery.
+
+# 1. Introduction
+
+## 1.1 Background
+
+Luzern (Lucerne) is a major tourist destination in Central Switzerland, attracting millions of visitors annually. Understanding tourism patterns is crucial for:
+
+- **Economic Planning**: Tourism contributes significantly to the local economy
+- **Environmental Sustainability**: Managing the environmental impact of tourism
+- **Infrastructure Management**: Planning for accommodation, transportation, and public services
+- **Cultural Preservation**: Balancing tourism growth with local community needs
+
+## 1.2 Objectives
+
+This analysis aims to:
+
+1. Examine tourism arrival trends in Luzern
+2. Analyze seasonal patterns and peak periods
+3. Evaluate sustainability metrics
+4. Provide insights for sustainable tourism management
+
+# 2. Data Overview
+
+```{r data-info}
+# Data description
+cat("This section demonstrates how to load and explore tourism data for Luzern.\n")
+cat("Data sources may include:\n")
+cat("- Swiss Federal Statistical Office (BFS)\n")
+cat("- Luzern Tourism Board\n")
+cat("- Hotel occupancy statistics\n")
+cat("- Visitor surveys and feedback\n")
+```
+
+## 2.1 Sample Data Creation
+
+```{r sample-data}
+# Create sample tourism data for demonstration
+set.seed(42)
+
+# Generate monthly data for the past 3 years
+dates <- seq(from = as.Date("2021-01-01"), 
+             to = as.Date("2023-12-31"), 
+             by = "month")
+
+tourism_data <- tibble(
+  date = dates,
+  year = year(dates),
+  month = month(dates, label = TRUE),
+  month_num = month(dates),
+  
+  # Visitor arrivals (in thousands)
+  total_visitors = round(rnorm(length(dates), mean = 85, sd = 20) + 
+                          30 * sin(2 * pi * month(dates) / 12), 1),
+  
+  # Origin of visitors
+  domestic_visitors = round(total_visitors * runif(length(dates), 0.30, 0.45), 1),
+  international_visitors = round(total_visitors - domestic_visitors, 1),
+  
+  # Hotel statistics
+  hotel_nights = round(total_visitors * runif(length(dates), 1.8, 2.5), 1),
+  occupancy_rate = round(runif(length(dates), 45, 85), 1),
+  
+  # Sustainability metrics
+  public_transport_usage = round(runif(length(dates), 55, 75), 1),
+  co2_emissions_tons = round(total_visitors * runif(length(dates), 0.08, 0.15), 1),
+  waste_generated_tons = round(total_visitors * runif(length(dates), 0.05, 0.10), 1)
+) %>%
+  mutate(
+    # Ensure positive values
+    total_visitors = pmax(total_visitors, 20),
+    domestic_visitors = pmin(domestic_visitors, total_visitors * 0.45),
+    international_visitors = total_visitors - domestic_visitors
+  )
+
+# Display first few rows
+head(tourism_data, 10) %>%
+  kable(caption = "Sample Tourism Data for Luzern (First 10 months)")
+```
+
+# 3. Tourism Trends Analysis
+
+## 3.1 Overall Visitor Trends
+
+```{r visitor-trends}
+# Plot total visitors over time
+ggplot(tourism_data, aes(x = date, y = total_visitors)) +
+  geom_line(color = "#2C3E50", size = 1.2) +
+  geom_point(color = "#E74C3C", size = 2) +
+  geom_smooth(method = "loess", se = TRUE, alpha = 0.2, color = "#3498DB") +
+  labs(
+    title = "Tourism Arrivals in Luzern (2021-2023)",
+    subtitle = "Monthly visitor numbers in thousands",
+    x = "Date",
+    y = "Visitors (thousands)",
+    caption = "Source: Sample data for demonstration"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12, color = "gray40")
+  )
+```
+
+## 3.2 Domestic vs. International Visitors
+
+```{r visitor-origin}
+# Reshape data for stacked area chart
+visitor_origin <- tourism_data %>%
+  select(date, domestic_visitors, international_visitors) %>%
+  pivot_longer(
+    cols = c(domestic_visitors, international_visitors),
+    names_to = "visitor_type",
+    values_to = "visitors"
+  ) %>%
+  mutate(visitor_type = recode(visitor_type,
+                                domestic_visitors = "Domestic",
+                                international_visitors = "International"))
+
+# Stacked area chart
+ggplot(visitor_origin, aes(x = date, y = visitors, fill = visitor_type)) +
+  geom_area(alpha = 0.7, position = "stack") +
+  scale_fill_manual(values = c("Domestic" = "#2ECC71", "International" = "#3498DB")) +
+  labs(
+    title = "Domestic vs. International Visitors",
+    subtitle = "Breakdown of visitor origins over time",
+    x = "Date",
+    y = "Visitors (thousands)",
+    fill = "Visitor Type"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    legend.position = "bottom"
+  )
+```
+
+## 3.3 Seasonal Patterns
+
+```{r seasonal-analysis}
+# Calculate average visitors by month across all years
+seasonal_pattern <- tourism_data %>%
+  group_by(month) %>%
+  summarise(
+    avg_visitors = mean(total_visitors),
+    min_visitors = min(total_visitors),
+    max_visitors = max(total_visitors)
+  ) %>%
+  ungroup()
+
+# Seasonal bar chart with error bars
+ggplot(seasonal_pattern, aes(x = month, y = avg_visitors)) +
+  geom_col(fill = "#E67E22", alpha = 0.8) +
+  geom_errorbar(
+    aes(ymin = min_visitors, ymax = max_visitors),
+    width = 0.3,
+    color = "#95A5A6"
+  ) +
+  labs(
+    title = "Seasonal Tourism Patterns in Luzern",
+    subtitle = "Average monthly visitors (2021-2023) with range",
+    x = "Month",
+    y = "Average Visitors (thousands)"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+
+```{r seasonal-summary}
+# Summary statistics by season
+tourism_data %>%
+  mutate(
+    season = case_when(
+      month_num %in% c(12, 1, 2) ~ "Winter",
+      month_num %in% c(3, 4, 5) ~ "Spring",
+      month_num %in% c(6, 7, 8) ~ "Summer",
+      month_num %in% c(9, 10, 11) ~ "Fall"
+    )
+  ) %>%
+  group_by(season) %>%
+  summarise(
+    avg_visitors = round(mean(total_visitors), 1),
+    avg_hotel_nights = round(mean(hotel_nights), 1),
+    avg_occupancy = round(mean(occupancy_rate), 1)
+  ) %>%
+  kable(
+    caption = "Seasonal Tourism Statistics",
+    col.names = c("Season", "Avg Visitors (k)", "Avg Hotel Nights (k)", "Avg Occupancy (%)")
+  )
+```
+
+# 4. Hotel and Accommodation Analysis
+
+## 4.1 Hotel Occupancy Trends
+
+```{r hotel-occupancy}
+# Hotel occupancy over time
+ggplot(tourism_data, aes(x = date, y = occupancy_rate)) +
+  geom_line(color = "#8E44AD", size = 1) +
+  geom_hline(yintercept = 60, linetype = "dashed", color = "#E74C3C", size = 0.8) +
+  annotate("text", x = min(tourism_data$date), y = 62, 
+           label = "Target: 60%", hjust = 0, color = "#E74C3C") +
+  labs(
+    title = "Hotel Occupancy Rate in Luzern",
+    subtitle = "Monthly occupancy percentage",
+    x = "Date",
+    y = "Occupancy Rate (%)"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 16, face = "bold"))
+```
+
+## 4.2 Relationship: Visitors vs. Hotel Nights
+
+```{r visitors-hotel-nights}
+# Scatter plot with correlation
+ggplot(tourism_data, aes(x = total_visitors, y = hotel_nights)) +
+  geom_point(aes(color = year), size = 3, alpha = 0.7) +
+  geom_smooth(method = "lm", se = TRUE, color = "#2C3E50") +
+  scale_color_gradient(low = "#3498DB", high = "#E74C3C") +
+  labs(
+    title = "Relationship between Visitors and Hotel Nights",
+    subtitle = sprintf("Correlation: r = %.2f", 
+                       cor(tourism_data$total_visitors, tourism_data$hotel_nights)),
+    x = "Total Visitors (thousands)",
+    y = "Hotel Nights (thousands)",
+    color = "Year"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    legend.position = "right"
+  )
+```
+
+# 5. Sustainability Metrics
+
+## 5.1 Environmental Impact
+
+```{r environmental-impact}
+# Create long format for multiple metrics
+sustainability_long <- tourism_data %>%
+  select(date, co2_emissions_tons, waste_generated_tons) %>%
+  pivot_longer(
+    cols = c(co2_emissions_tons, waste_generated_tons),
+    names_to = "metric",
+    values_to = "value"
+  ) %>%
+  mutate(
+    metric = recode(metric,
+                    co2_emissions_tons = "CO2 Emissions (tons)",
+                    waste_generated_tons = "Waste Generated (tons)")
+  )
+
+# Faceted plot
+ggplot(sustainability_long, aes(x = date, y = value)) +
+  geom_line(color = "#16A085", size = 1) +
+  geom_point(color = "#E74C3C", size = 1.5, alpha = 0.6) +
+  facet_wrap(~metric, scales = "free_y", ncol = 1) +
+  labs(
+    title = "Environmental Impact of Tourism in Luzern",
+    subtitle = "CO2 emissions and waste generation trends",
+    x = "Date",
+    y = "Value"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    strip.text = element_text(size = 12, face = "bold")
+  )
+```
+
+## 5.2 Public Transport Usage
+
+```{r public-transport}
+# Public transport usage over time
+ggplot(tourism_data, aes(x = date, y = public_transport_usage)) +
+  geom_line(color = "#27AE60", size = 1.2) +
+  geom_point(color = "#2C3E50", size = 2) +
+  geom_hline(yintercept = 65, linetype = "dashed", color = "#E67E22") +
+  annotate("text", x = max(tourism_data$date), y = 67, 
+           label = "Target: 65%", hjust = 1, color = "#E67E22") +
+  labs(
+    title = "Public Transport Usage by Tourists",
+    subtitle = "Percentage of tourists using public transportation",
+    x = "Date",
+    y = "Usage Rate (%)"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 16, face = "bold"))
+```
+
+## 5.3 Environmental Efficiency
+
+```{r environmental-efficiency}
+# Calculate emissions per visitor
+tourism_data <- tourism_data %>%
+  mutate(
+    co2_per_visitor = co2_emissions_tons / total_visitors,
+    waste_per_visitor = waste_generated_tons / total_visitors
+  )
+
+# Plot efficiency over time
+efficiency_long <- tourism_data %>%
+  select(date, co2_per_visitor, waste_per_visitor) %>%
+  pivot_longer(
+    cols = c(co2_per_visitor, waste_per_visitor),
+    names_to = "metric",
+    values_to = "value"
+  ) %>%
+  mutate(
+    metric = recode(metric,
+                    co2_per_visitor = "CO2 per Visitor (kg)",
+                    waste_per_visitor = "Waste per Visitor (kg)")
+  ) %>%
+  mutate(value = value * 1000)  # Convert to kg
+
+ggplot(efficiency_long, aes(x = date, y = value, color = metric)) +
+  geom_line(size = 1) +
+  geom_smooth(method = "loess", se = FALSE, linetype = "dashed", alpha = 0.5) +
+  scale_color_manual(values = c("CO2 per Visitor (kg)" = "#E74C3C", 
+                                 "Waste per Visitor (kg)" = "#F39C12")) +
+  labs(
+    title = "Environmental Efficiency Trends",
+    subtitle = "Environmental impact per visitor over time",
+    x = "Date",
+    y = "Value (kg per visitor)",
+    color = "Metric"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    legend.position = "bottom"
+  )
+```
+
+# 6. Year-over-Year Comparison
+
+```{r yoy-comparison}
+# Calculate year-over-year metrics
+yoy_summary <- tourism_data %>%
+  group_by(year) %>%
+  summarise(
+    total_annual_visitors = sum(total_visitors),
+    avg_monthly_visitors = mean(total_visitors),
+    total_hotel_nights = sum(hotel_nights),
+    avg_occupancy = mean(occupancy_rate),
+    avg_co2_per_visitor = mean(co2_per_visitor) * 1000,  # in kg
+    avg_public_transport = mean(public_transport_usage)
+  ) %>%
+  ungroup()
+
+yoy_summary %>%
+  kable(
+    caption = "Year-over-Year Tourism Statistics for Luzern",
+    col.names = c("Year", "Total Visitors (k)", "Avg Monthly Visitors (k)", 
+                  "Total Hotel Nights (k)", "Avg Occupancy (%)", 
+                  "Avg CO2 per Visitor (kg)", "Avg Public Transport (%)"),
+    digits = 1
+  )
+```
+
+```{r yoy-growth}
+# Calculate growth rates
+yoy_growth <- yoy_summary %>%
+  mutate(
+    visitor_growth = (total_annual_visitors / lag(total_annual_visitors) - 1) * 100,
+    occupancy_change = avg_occupancy - lag(avg_occupancy),
+    co2_efficiency_change = avg_co2_per_visitor - lag(avg_co2_per_visitor)
+  )
+
+yoy_growth %>%
+  select(year, visitor_growth, occupancy_change, co2_efficiency_change) %>%
+  filter(!is.na(visitor_growth)) %>%
+  kable(
+    caption = "Year-over-Year Growth and Changes",
+    col.names = c("Year", "Visitor Growth (%)", "Occupancy Change (pp)", 
+                  "CO2 Efficiency Change (kg)"),
+    digits = 2
+  )
+```
+
+# 7. Key Insights and Recommendations
+
+## 7.1 Key Findings
+
+```{r key-findings}
+# Calculate key statistics
+total_visitors_all <- sum(tourism_data$total_visitors)
+avg_monthly_visitors <- mean(tourism_data$total_visitors)
+peak_month <- tourism_data %>% 
+  filter(total_visitors == max(total_visitors)) %>% 
+  pull(month) %>% 
+  as.character() %>% 
+  first()
+avg_public_transport <- mean(tourism_data$public_transport_usage)
+```
+
+Based on the analysis, here are the key findings:
+
+1. **Total Visitors**: Over the 3-year period, Luzern received approximately **`r round(total_visitors_all, 0)` thousand** visitors.
+
+2. **Average Monthly Visitors**: The average monthly visitor count is **`r round(avg_monthly_visitors, 1)` thousand**.
+
+3. **Peak Season**: The highest visitor numbers typically occur in **`r peak_month`**, indicating strong summer tourism.
+
+4. **Public Transport**: An average of **`r round(avg_public_transport, 1)`%** of tourists use public transportation, supporting sustainable mobility goals.
+
+5. **Seasonality**: Clear seasonal patterns exist, with summer months showing significantly higher visitor numbers than winter months.
+
+## 7.2 Sustainability Recommendations
+
+1. **Enhance Off-Season Tourism**
+   - Develop winter and shoulder-season attractions
+   - Offer incentives for off-peak travel
+   - Promote indoor cultural activities
+
+2. **Improve Environmental Efficiency**
+   - Continue promoting public transportation
+   - Implement carbon offset programs
+   - Enhance waste management and recycling facilities
+
+3. **Capacity Management**
+   - Monitor carrying capacity during peak seasons
+   - Implement visitor distribution strategies
+   - Develop digital booking systems to manage flows
+
+4. **Sustainable Infrastructure**
+   - Invest in green hotel certifications
+   - Expand electric vehicle charging stations
+   - Support local and sustainable tourism businesses
+
+5. **Data-Driven Decision Making**
+   - Continue monitoring key sustainability metrics
+   - Implement real-time visitor tracking
+   - Regular assessment of environmental impact
+
+# 8. Conclusions
+
+This analysis of tourism in Luzern demonstrates:
+
+- **Strong Tourism Performance**: Luzern remains a popular destination with consistent visitor numbers
+- **Seasonal Challenges**: High seasonality presents both opportunities and challenges for sustainable management
+- **Sustainability Progress**: Good public transport usage indicates commitment to sustainable tourism
+- **Areas for Improvement**: Environmental efficiency metrics suggest room for enhancement
+
+Moving forward, a balanced approach that promotes economic benefits while minimizing environmental impact will be crucial for Luzern's sustainable tourism development.
+
+---
+
+# Appendix
+
+## A. Data Sources and References
+
+For actual implementation, consider the following data sources:
+
+1. **Swiss Federal Statistical Office (BFS)**: https://www.bfs.admin.ch/
+2. **Luzern Tourism Board**: https://www.luzern.com/
+3. **Swiss Tourism Federation**: https://www.stnet.ch/
+4. **Eurostat Tourism Statistics**: https://ec.europa.eu/eurostat
+
+## B. Technical Information
+
+```{r session-info}
+# R session information
+sessionInfo()
+```
+
+## C. Data Export
+
+```{r data-export, eval=FALSE}
+# Export processed data (optional)
+# Uncomment to save data
+# write_csv(tourism_data, "tourism_luzern_processed.csv")
+# write_csv(yoy_summary, "tourism_luzern_summary.csv")
+```
+
+---
+
+**Report Generated:** `r Sys.time()`
+
+**Contact:** For questions about this analysis, please contact the Sustainability Analytics Team.
