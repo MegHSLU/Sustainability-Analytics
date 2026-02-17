@@ -31,12 +31,16 @@ h2 { background-color: #e6f2ff;   /* light blue highlight */ padding: 6px 10px;
 
 ## Abstract
 This project investigates how climate change may influence tourism activity in the canton of Lucerne (Luzern). Tourism represents a key economic sector in the region and exhibits strong seasonal patterns, particularly driven by winter sports and summer leisure tourism. Increasing global warming and changing weather conditions raise concerns about the long-term sustainability of tourism-dependent alpine regions.
+
 To analyse this relationship, the study combines empirical time-series analysis with a system dynamics modelling approach. Tourism demand is represented through overnight stay data, while climatic conditions are measured using weather and snowfall indicators obtained from MeteoSwiss. The time-series analysis is used to identify seasonal patterns and long-term trends in tourism demand, while the system dynamics model explores the interactions between climate conditions, tourism flows, and economic feedback mechanisms.
+
 The findings provide insights into how climate change may affect tourism seasonality and highlight potential sustainability challenges for regional tourism development. While the analysis does not aim to establish direct causal relationships, it identifies meaningful trends and systemic interactions that can inform future research and policy considerations.
 
 ## Problem Statement
 Tourism is a significant economic and social activity in Switzerland and plays an important role in the canton of Lucerne. The region attracts both domestic and international visitors, contributing to local employment, infrastructure development, and regional economic growth. Tourism demand in Lucerne exhibits strong seasonal patterns, with winter tourism largely driven by snow-dependent activities such as skiing, while summer tourism is influenced by outdoor recreation and natural attractions.
+
 However, climate change is increasingly altering temperature patterns, precipitation levels, and snow availability in alpine regions. Rising temperatures may reduce snow reliability and shorten winter sports seasons, potentially affecting tourism flows and regional economic performance. At the same time, warmer temperatures may increase summer tourism attractiveness, potentially shifting tourism demand across seasons.
+
 Understanding how tourism demand responds to changing climate conditions is therefore essential for long-term regional planning and sustainability considerations. This study explores how climate change may influence tourism dynamics in Lucerne by analysing historical data and modelling system interactions between climatic factors and tourism activity.
 
 ## Research Question
@@ -52,6 +56,7 @@ Sub-questions?
 
 ## Relevance & Sustainability
 Tourism in alpine regions is highly dependent on environmental conditions, making it particularly vulnerable to climate change. Reduced snow reliability can threaten winter tourism infrastructure, employment, and local economic stability. As snow seasons shorten and weather patterns become more unpredictable, destinations may face increased operational costs, pressure to invest in artificial snowmaking, and the need to diversify tourism offerings. At the same time, seasonal shifts may require infrastructure adaptation and long‑term strategic planning to maintain regional competitiveness
+
 This research contributes to sustainability discussions by analysing how climate-related environmental changes may influence tourism demand and regional economic systems. The study is particularly relevant in the context of sustainable tourism development and climate adaptation strategies, aligning with global sustainability objectives such as climate action and sustainable economic growth. The project directly relates to key Sustainable Development Goals, including **SDG 8 (Decent Work and Economic Growth), SDG 11 (Sustainable cities and communities and SDG 13 (Climate Action)**, by examining how climate vulnerability intersects with economic dependency and the future viability of alpine tourism.
 
 ## System Maps
@@ -62,6 +67,8 @@ To build a clear foundation for our system dynamics model, we began with a serie
 </Center>
 <br>
 As one of the initial steps, we conducted a problem framing exercise to refine the research question. Using a series of “how might we” prompts, we explored the different perspectives on the relationship between climate change, snow fall and tourism demand, and economic performance ranging from the tourism in canton luzern to the specific case of sorenberg ski area and its hotel sector. This process allowed the group to compare different questions identifying which ones were too broad and which ones were too narrow. Through this iterative approach we aligned on a focused research question.
+
+
 </Center>
 <br>
 <Center>
@@ -69,6 +76,7 @@ As one of the initial steps, we conducted a problem framing exercise to refine t
 </Center>
 <br>
 After focusing on the research question and seeing what data we conducted an exploratory mapping exercise from design thinking. This is done by brainstorming words that we associate with our question and our topic. After we each wrote the word we searched for the connection that there was within them and highlighted the most relevant ones for us.This process helped identify potential relationships, interdependencies and feedback between climate and tourism.
+
 <br>
 <Center>
 ![](IMAGE/3.jpeg){width=50%}
@@ -104,7 +112,7 @@ To analyse the complex interactions between climate change and tourism demand in
 ### **Casual Loop Diagram**
 <br>
 <Center>
-![](IMAGE/loop.png){width=50%}
+![](IMAGE/loop.png){width=70%}
 </Center>
 <br>
 This diagram done in LOOPY  helps illustrate a simplified system dynamics representation of tourism in luzern in summer and in winter, highlighting the interactions between climate conditions and tourism related economic activity. In the diagram it is illustrated how snow availability positively influences tourism levels, which in turn increase overnight stays and generate higher tourism revenue. Increased revenue supports investment in hotel capacity, further reinforcing tourism demand through a positive feedback loop. At the same time, global warming negatively affects snow availability, introducing a balancing mechanism that can reduce tourism activity, particularly during winter seasons. By linking climatic factors, tourism demand, and economic feedback, the model provides a systemic framework for understanding how climate change may influence tourism patterns over time, while acknowledging that these relationships represent simplified dynamics rather than precise causal effects.
@@ -113,7 +121,7 @@ This diagram done in LOOPY  helps illustrate a simplified system dynamics repres
 
 <br>
 <Center>
-![](IMAGE/flow.png){width=50%}
+![](IMAGE/flow.png){width=60%}
 </Center>
 <br>
 This system dynamics model produced in Stella uses a structured stock–flow approach to help understand the interaction between tourism diversification, destination attractiveness and demand. Diversification and attractiveness are modelled as cumulative stocks that grow through investment and natural development processes, and decline through natural decay mechanisms. This represents long-term structural change in the tourism system. Demand emerges from the interaction between baseline demand, seasonal demand and a demand multiplier that is influenced by the performance of the system. The model structure generates reinforcing feedback loops, which drive growth through positive interactions between diversification, attractiveness and demand, as well as balancing feedback loops, which introduce natural limits through decay and saturation effects. This feedback structure enables the model to simulate dynamic behaviours such as growth, stabilisation and long-term equilibrium, rendering it suitable for scenario analysis and the evaluation of sustainability-oriented policies.
@@ -125,7 +133,7 @@ This system dynamics model produced in Stella uses a structured stock–flow app
 To complement our system dynamics analysis, we developed a Python-based model that simulates the interactions between climate change and tourism demand in Lucerne. The model incorporates key variables. Using historical data from MeteoSwiss and tourism statistics, we calibrated the model to reflect observed trends and seasonal patterns.
 
 <details>
-<summary><strong>Turist System Dynamics Python Code BPTK </strong></summary>
+<summary><strong>Tourist System Dynamics Python Code BPTK </strong></summary>
 
 ```python
 import pandas as pd
@@ -445,7 +453,6 @@ understanding of tourism dynamics. The scenario analysis highlights the potentia
 
 To complement our system dynamics modelling, we conducted two time-series analysis of tourism demand in Lucerne
 using historical overnight stay data from 2005 to 2022. Both analysis focused on identifying seasonal patterns, trends, and potential correlations with climatic variables such as temperature and snowfall.
-
 <br>
 
 ### **SARIMA**
