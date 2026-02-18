@@ -66,7 +66,7 @@ To build a clear foundation for our system dynamics model, we began with a serie
 ![](IMAGE/1.jpeg){width=50%}
 </Center>
 <br>
-As one of the initial steps, we conducted a problem framing exercise to refine the research question. Using a series of “how might we” prompts, we explored the different perspectives on the relationship between climate change, snow fall and tourism demand, and economic performance ranging from the tourism in canton luzern to the specific case of sorenberg ski area and its hotel sector. This process allowed the group to compare different questions identifying which ones were too broad and which ones were too narrow. Through this iterative approach we aligned on a focused research question.
+As one of the initial steps, we conducted a problem-framing exercise to refine the research question. Using a series of “How might we” prompts, we explored different perspectives on the relationship between climate change, snowfall, tourism demand, and economic performance, ranging from tourism in the Canton of Lucerne to the specific case of the Sörenberg ski area and its hotel sector. This process allowed the group to compare different questions, identifying which were too broad and which were too narrow. Through this iterative approach, we aligned on a focused research question.
 
 
 </Center>
@@ -75,21 +75,21 @@ As one of the initial steps, we conducted a problem framing exercise to refine t
 ![](IMAGE/2.jpeg){width=50%}
 </Center>
 <br>
-After focusing on the research question and seeing what data we conducted an exploratory mapping exercise from design thinking. This is done by brainstorming words that we associate with our question and our topic. After we each wrote the word we searched for the connection that there was within them and highlighted the most relevant ones for us.This process helped identify potential relationships, interdependencies and feedback between climate and tourism.
+After refining the research question and reviewing the available data, we conducted an exploratory mapping exercise based on design thinking. This involved brainstorming words that we associate with our research question and topic. After each of us wrote down our words, we identified the connections between them and highlighted the most relevant ones. This process helped identify potential relationships, interdependencies, and feedback loops between climate and tourism.
 
 <br>
 <Center>
 ![](IMAGE/3.jpeg){width=50%}
 </Center>
 <br>
-After the initial brainstorming, we organized the variables into a simplified relationship map centered around our most connected worlds in the exploratory mapping. This step helped clarify the main correlations and interactions in the system and guided the transition from exploratory ideas to the structured system dynamics model used in the analysis.
+After the initial brainstorming, we organized the variables into a simplified relationship map centered around the most connected words identified in the exploratory mapping. This step helped clarify the main correlations and interactions within the system and guided the transition from exploratory ideas to the structured system dynamics model used in the analysis.
 
 <br>
 <Center>
 ![](IMAGE/4.jpeg){width=50%}
 </Center>
 <br>
-Our last design thinking step was to create a way to communicate our problem with drawings. So we try to communicate how global warming is affecting the hotel industry and how if it continues the tourism will finish shifting into summer tourism.
+Our final design thinking step was to create a visual way to communicate our problem through drawings. We aimed to illustrate how global warming is affecting the hotel industry and how, if it continues, tourism may gradually shift toward summer tourism.
 
 ### **Shareholder matrix**
 <br>
@@ -104,7 +104,7 @@ The concentric circles illustrate how closely each stakeholder group is connecte
 ![](IMAGE/sh.jpeg){width=50%}
 </Center>
 <br>
-After finding the interested groups we did a stakeholder matrix for the different groups based on two dimensions: how much power they have over the project and how interested they are in it. Stakeholders with high power and high interest like local government, hotel owners, and tourism authorities are the key players who must be closely managed and actively engaged. Those with high power but low interest, such as sports stores or climate activists, should be kept satisfied so they don’t become blockers. Groups with high interest but low power, like local businesses or students, benefit from regular communication and involvement. Finally, stakeholders with low power and low interest, such as builders or airlines, require minimal but respectful monitoring. This matrix helps prioritize communication and tailor strategies for each group.
+After identifying the relevant stakeholder groups, we created a stakeholder matrix based on two dimensions: the level of power they have over the project and their level of interest in it. Stakeholders with high power and high interest, such as the local government, hotel owners, and tourism authorities, are key players who must be closely managed and actively engaged. Those with high power but low interest, such as sports stores or climate activists, should be kept satisfied so they do not become blockers. Groups with high interest but low power, such as local businesses or students, benefit from regular communication and involvement. Finally, stakeholders with low power and low interest, such as builders or airlines, require minimal but respectful monitoring. This matrix helps prioritize communication efforts and tailor engagement strategies for each group.
 
 ## System Dynamics
 To analyse the complex interactions between climate change and tourism demand in Lucerne, we developed a system dynamics model that captures the key feedback loops and relationships within the tourism system. The model includes variables representing climatic conditions (e.g., temperature, snowfall), tourism demand (e.g., overnight stays), economic performance (e.g., revenue, employment), and adaptation measures (e.g., infrastructure investment, marketing efforts).
@@ -115,7 +115,7 @@ To analyse the complex interactions between climate change and tourism demand in
 ![](IMAGE/loop.png){width=70%}
 </Center>
 <br>
-This diagram done in LOOPY  helps illustrate a simplified system dynamics representation of tourism in luzern in summer and in winter, highlighting the interactions between climate conditions and tourism related economic activity. In the diagram it is illustrated how snow availability positively influences tourism levels, which in turn increase overnight stays and generate higher tourism revenue. Increased revenue supports investment in hotel capacity, further reinforcing tourism demand through a positive feedback loop. At the same time, global warming negatively affects snow availability, introducing a balancing mechanism that can reduce tourism activity, particularly during winter seasons. By linking climatic factors, tourism demand, and economic feedback, the model provides a systemic framework for understanding how climate change may influence tourism patterns over time, while acknowledging that these relationships represent simplified dynamics rather than precise causal effects.
+This diagram, created in LOOPY, illustrates a simplified system dynamics representation of tourism in Lucerne during both summer and winter, highlighting the interactions between climate conditions and tourism-related economic activity. The diagram shows how snow availability positively influences tourism levels, which in turn increase overnight stays and generate higher tourism revenue. Increased revenue supports investment in hotel capacity, further reinforcing tourism demand through a positive feedback loop. At the same time, global warming negatively affects snow availability, introducing a balancing mechanism that can reduce tourism activity, particularly during the winter season. By linking climatic factors, tourism demand, and economic feedback, the model provides a systemic framework for understanding how climate change may influence tourism patterns over time, while acknowledging that these relationships represent simplified dynamics rather than precise causal effects.
 
 ### **Stock and Flow Diagram**
 
@@ -816,7 +816,7 @@ display(kpi.head(10))
 <br>
 <Center>
 ![](IMAGE/dif.png){width=90%}
-![](IMAGE/dif2.png){width=90%}
+![](IMAGE/dif2.png){width=80%}
 </Center>
 <br>
 The charts show a clear trend towards reduced snow reliability and greater seasonal instability in Sörenberg. Although low-threshold snow presence (≥0 cm) remains relatively frequent, higher snow depth conditions (≥10 cm) critical for winter tourism show declining persistence and strong interannual variability. The season-length proxy also shows that winter seasons are becoming more fragmented and irregular over time, reflecting shorter and less predictable snow periods. Together, these patterns provide empirical evidence of a structural weakening of winter conditions, which is consistent with the impacts of climate change on the viability of alpine tourism.
