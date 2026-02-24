@@ -1895,10 +1895,6 @@ fail_rate
 </details>
 
 <br>
-<Center>
-![](IMAGE/x4.png){width=90%}
-</Center>
-<br>
 
 <details>
 <summary><strong> Average metrics </strong></summary>
@@ -2033,7 +2029,6 @@ pacf(y)
 <br>
 <Center>
 ![](IMAGE/x11.png){width=90%}
-![](IMAGE/x12.png){width=90%}
 ![](IMAGE/x13.png){width=90%}
 ![](IMAGE/x14.png){width=90%}
 </Center>
@@ -2456,4 +2451,5 @@ The results of all analyses show that tourism activity in Lucerne is highly seas
 
 This study shows that tourism activity in the canton of Lucerne is heavily influenced by seasonality and climate conditions. There is clear evidence that climate change is already affecting long-term patterns. A descriptive time-series analysis reveals a consistent and robust summer peak, as well as a gradual weakening of winter tourism, which is consistent with the decline in snow reliability. The SARIMA benchmark confirms these structural dynamics. Meanwhile, the SARIMAX model, enhanced with temperature data, achieves superior predictive accuracy. This demonstrates that climate variables meaningfully improve the explanation of tourism demand. The non-linear climate–tourism relationship further indicates that, while warmer conditions support summer tourism, they do not compensate for losses in the winter season. Overall, the results suggest that Lucerne’s tourism sector is becoming increasingly dependent on warm-season activities, while snow-based winter tourism is in structural decline.
 In light of these findings, the study concludes that one of the most effective strategies for sustaining winter tourism despite ongoing reductions in snowfall is to diversify into climate-independent offerings such as wellness facilities, spas, cultural events and Christmas markets. These activities can attract visitors during the off-season, reduce vulnerability to climate variability and support a more resilient year-round tourism economy for the region.
+
 
