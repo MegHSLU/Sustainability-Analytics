@@ -1,0 +1,770 @@
+---
+title: "Sustainability"
+authour: Aishwarya Patil
+output: html_notebook
+---
+```{r}
+library(tidyverse)
+library(lubridate)
+library(forecast)
+
+df <- read_csv("Lucerne_Tourism_Climate_Monthly_Merged.csv", show_col_types = FALSE) %>%
+  mutate(date_month = as.Date(date_month)) %>%
+  arrange(date_month)
+
+covid_start <- as.Date("2020-03-01")
+covid_end   <- as.Date("2021-06-01")
+
+df <- df %>%
+  mutate(covid_dummy = if_else(date_month >= covid_start & date_month <= covid_end, 1, 0))
+
+y <- ts(log1p(df$overnights),
+        start=c(year(min(df$date_month)), month(min(df$date_month))),
+        frequency=12)
+
+X <- as.matrix(df %>% select(temp_mean_C, precip_sum_mm, covid_dummy))
+
+```
+
+
+```{r}
+library(forecast)
+
+# ---- sanity checks ----
+stopifnot(is.ts(y))
+stopifnot(frequency(y) == 12)
+
+stopifnot(is.matrix(X))
+stopifnot(nrow(X) == length(y))
+
+# recommended for stability in SARIMAX:
+X <- scale(X)
+
+# ---- backtest settings ----
+W <- 84   # training window length (months)
+h <- 3    # forecast horizon
+step <- 1 # step size between folds
+
+n <- length(y)
+
+# fold endpoints (indices of last training observation)
+fold_ends <- seq(W, n - h, by = step)
+
+length(fold_ends)
+head(fold_ends); tail(fold_ends)
+
+```
+
+
+```{r}
+metrics <- function(actual, pred){
+  actual <- as.numeric(actual)
+  pred   <- as.numeric(pred)
+
+  tibble(
+    RMSE = sqrt(mean((actual - pred)^2, na.rm=TRUE)),
+    MAE  = mean(abs(actual - pred), na.rm=TRUE),
+    MAPE = mean(abs((actual - pred) / actual), na.rm=TRUE) * 100
+  )
+}
+
+```
+
+
+```{r}
+k <- 1  # test the first fold
+end_train <- fold_ends[k]
+start_train <- end_train - W + 1
+
+# Check index ranges are valid
+stopifnot(start_train >= 1)
+stopifnot(end_train + h <= n)
+
+# Use INDEX slicing (more robust than window(time(y)[...]) in many cases)
+y_tr <- ts(y[start_train:end_train], frequency=12)
+y_te <- y[(end_train+1):(end_train+h)]
+
+X_tr <- X[start_train:end_train, , drop=FALSE]
+X_te <- X[(end_train+1):(end_train+h), , drop=FALSE]
+
+dim(X_tr); dim(X_te)
+length(y_tr); length(y_te)
+
+# Fit baseline SARIMA quickly (you can change order later)
+m_sarima <- Arima(y_tr, order=c(0,1,1), seasonal=list(order=c(0,1,1), period=12), method="ML")
+f_sarima <- forecast(m_sarima, h=h)$mean
+
+# Fit SARIMAX
+m_sarimax <- Arima(y_tr, order=c(0,1,1), seasonal=list(order=c(0,1,1), period=12),
+                   xreg=X_tr, method="ML")
+f_sarimax <- forecast(m_sarimax, xreg=X_te, h=h)$mean
+
+metrics(y_te, f_sarima)
+metrics(y_te, f_sarimax)
+
+```
+1. single-fold 
+This chunk:
+
+scales X using training mean/sd
+drops constant columns
+tries ML, then CSS-ML
+if still fails, falls back to a simpler seasonal model
+```{r}
+
+```
+
+
+```{r}
+library(forecast)
+
+k <- 1
+end_train <- fold_ends[k]
+start_train <- end_train - W + 1
+
+y_tr <- ts(y[start_train:end_train], frequency=12)
+y_te <- y[(end_train+1):(end_train+h)]
+
+X_tr_raw <- X[start_train:end_train, , drop=FALSE]
+X_te_raw <- X[(end_train+1):(end_train+h), , drop=FALSE]
+
+# ---- 1) Drop constant columns in this fold (e.g., covid all zeros) ----
+is_const <- apply(X_tr_raw, 2, function(z) sd(z, na.rm=TRUE) == 0)
+X_tr_raw <- X_tr_raw[, !is_const, drop=FALSE]
+X_te_raw <- X_te_raw[, !is_const, drop=FALSE]
+
+# ---- 2) Scale using TRAIN stats only (avoid leakage) ----
+mu <- colMeans(X_tr_raw, na.rm=TRUE)
+sdv <- apply(X_tr_raw, 2, sd, na.rm=TRUE)
+sdv[sdv == 0] <- 1  # just in case
+
+X_tr <- scale(X_tr_raw, center=mu, scale=sdv)
+X_te <- scale(X_te_raw, center=mu, scale=sdv)
+
+# ---- 3) Fit SARIMA baseline  ----
+m_sarima <- Arima(y_tr,
+                  order=c(0,1,1),
+                  seasonal=list(order=c(0,1,1), period=12),
+                  method="ML")
+f_sarima <- forecast(m_sarima, h=h)$mean
+
+metrics(y_te, f_sarima)
+
+# ---- 4) Fit SARIMAX robustly (try ML -> CSS-ML -> fallback model) ----
+fit_try <- function(method_name, seas_order){
+  Arima(y_tr,
+        order=c(0,1,1),
+        seasonal=list(order=seas_order, period=12),
+        xreg=X_tr,
+        method=method_name)
+}
+
+m_sarimax <- try(fit_try("ML", c(0,1,1)), silent=TRUE)
+
+if(inherits(m_sarimax, "try-error")){
+  m_sarimax <- try(fit_try("CSS-ML", c(0,1,1)), silent=TRUE)
+}
+
+# fallback: simpler seasonal component
+if(inherits(m_sarimax, "try-error")){
+  m_sarimax <- try(fit_try("ML", c(0,1,0)), silent=TRUE)
+}
+
+if(inherits(m_sarimax, "try-error")){
+  m_sarimax <- try(fit_try("CSS-ML", c(0,1,0)), silent=TRUE)
+}
+
+# if still failing, print message
+if(inherits(m_sarimax, "try-error")){
+  stop("SARIMAX failed even after ML/CSS-ML and simpler seasonal order. Try larger W or simpler orders.")
+}
+
+f_sarimax <- forecast(m_sarimax, xreg=X_te, h=h)$mean
+metrics(y_te, f_sarimax)
+
+```
+```{r}
+
+
+```
+
+
+```{r}
+library(forecast)
+
+# ----------------------------
+# 0) Pick fold and slice SAME data
+# ----------------------------
+k <- 1
+end_train <- fold_ends[k]
+start_train <- end_train - W + 1
+
+y_tr <- ts(y[start_train:end_train], frequency=12)
+y_te <- y[(end_train+1):(end_train+h)]
+
+# ----------------------------
+# 1) Fit SARIMA on y_tr
+# ----------------------------
+m_sarima <- Arima(
+  y_tr,
+  order=c(0,1,1),
+  seasonal=list(order=c(0,1,1), period=12),
+  method="ML"
+)
+
+# ----------------------------
+# 2) Print model summary (this is the output you asked for)
+# ----------------------------
+cat("\n================ SARIMA SUMMARY (same window) ================\n")
+print(summary(m_sarima))
+
+cat("\nAIC / AICc / BIC:\n")
+print(c(AIC=AIC(m_sarima), AICc=forecast::AICc(m_sarima), BIC=BIC(m_sarima)))
+
+# ----------------------------
+# 3) Forecast and evaluate on SAME test horizon
+# ----------------------------
+fc_sarima <- forecast(m_sarima, h=h)
+f_sarima <- as.numeric(fc_sarima$mean)
+
+cat("\n================ SARIMA TEST METRICS (same horizon) ================\n")
+print(metrics(y_te, f_sarima))
+
+```
+```{r}
+
+
+```
+
+
+
+Rolling backtest loop ( SARIMA + SARIMAX)
+
+
+```{r}
+library(tidyverse)
+library(forecast)
+
+# --- robust SARIMAX fitter (same as before) ---
+fit_sarimax_robust <- function(y_tr, X_tr){
+  attempt <- function(method_name, seas_order){
+    Arima(y_tr,
+          order=c(0,1,1),
+          seasonal=list(order=seas_order, period=12),
+          xreg=X_tr,
+          method=method_name)
+  }
+
+  m <- try(attempt("ML", c(0,1,1)), silent=TRUE)
+  if(!inherits(m, "try-error")) return(m)
+
+  m <- try(attempt("CSS-ML", c(0,1,1)), silent=TRUE)
+  if(!inherits(m, "try-error")) return(m)
+
+  # fallback seasonal: (0,1,0)
+  m <- try(attempt("ML", c(0,1,0)), silent=TRUE)
+  if(!inherits(m, "try-error")) return(m)
+
+  m <- try(attempt("CSS-ML", c(0,1,0)), silent=TRUE)
+  if(!inherits(m, "try-error")) return(m)
+
+  stop("SARIMAX fit failed.")
+}
+
+res <- vector("list", length(fold_ends))
+
+for(k in seq_along(fold_ends)){
+  end_train <- fold_ends[k]
+  start_train <- end_train - W + 1
+  if(start_train < 1) next
+  if(end_train + h > n) next
+
+  # --- slice target ---
+  y_tr <- ts(y[start_train:end_train], frequency=12)
+  y_te <- y[(end_train+1):(end_train+h)]
+
+  # --- slice xreg ---
+  X_tr_raw <- X[start_train:end_train, , drop=FALSE]
+  X_te_raw <- X[(end_train+1):(end_train+h), , drop=FALSE]
+
+  # drop constant columns
+  is_const <- apply(X_tr_raw, 2, function(z) sd(z, na.rm=TRUE) == 0)
+  X_tr_raw <- X_tr_raw[, !is_const, drop=FALSE]
+  X_te_raw <- X_te_raw[, !is_const, drop=FALSE]
+
+  # scale using TRAIN stats only
+  mu <- colMeans(X_tr_raw, na.rm=TRUE)
+  sdv <- apply(X_tr_raw, 2, sd, na.rm=TRUE)
+  sdv[sdv == 0] <- 1
+
+  X_tr <- scale(X_tr_raw, center=mu, scale=sdv)
+  X_te <- scale(X_te_raw, center=mu, scale=sdv)
+
+  # ---- SARIMA baseline ----
+  m_sarima <- Arima(y_tr,
+                    order=c(0,1,1),
+                    seasonal=list(order=c(0,1,1), period=12),
+                    method="ML")
+  f_sarima <- forecast(m_sarima, h=h)$mean
+
+  # ---- SARIMAX (robust) ----
+  sarimax_failed <- FALSE
+  f_sarimax <- rep(NA_real_, h)
+
+  m_sarimax <- try(fit_sarimax_robust(y_tr, X_tr), silent=TRUE)
+
+  if(inherits(m_sarimax, "try-error")){
+    sarimax_failed <- TRUE
+  } else {
+    fc_x <- try(forecast(m_sarimax, xreg=X_te, h=h), silent=TRUE)
+
+    if(inherits(fc_x, "try-error")) {
+      sarimax_failed <- TRUE
+    } else {
+      f_sarimax <- as.numeric(fc_x$mean)
+
+      # If mean forecast not finite -> treat as failed
+      if(any(!is.finite(f_sarimax))) sarimax_failed <- TRUE
+    }
+  }
+
+  # If SARIMAX failed, fallback to SARIMA mean for metrics (so no NaN)
+  if(sarimax_failed){
+    f_sarimax <- as.numeric(f_sarima)
+  }
+
+  res[[k]] <- bind_rows(
+    metrics(y_te, f_sarima)  %>% mutate(model="SARIMA"),
+    metrics(y_te, f_sarimax) %>% mutate(model="SARIMAX", sarimax_failed=sarimax_failed)
+  ) %>% mutate(fold=k)
+}
+
+bt <- bind_rows(res)
+
+# --- how often SARIMAX failed ---
+fail_rate <- bt %>%
+  filter(model=="SARIMAX") %>%
+  summarise(
+    folds = n(),
+    failed = sum(sarimax_failed, na.rm=TRUE),
+    fail_rate = failed / folds
+  )
+
+fail_rate
+
+# --- average metrics (note: SARIMAX includes fallback-on-fail folds) ---
+bt_summary <- bt %>%
+  group_by(model) %>%
+  summarise(across(c(RMSE, MAE, MAPE), mean), .groups="drop")
+
+bt_summary
+
+```
+
+
+```{r}
+library(ggplot2)
+
+# RMSE over time
+bt %>%
+  ggplot(aes(fold, RMSE, color=model)) +
+  geom_line() +
+  geom_point(size=1) +
+  theme_minimal() +
+  labs(title=paste0("Rolling backtest RMSE (W=",W,", h=",h,")"),
+       x="Fold", y="RMSE (log1p scale)")
+
+# Boxplot comparison (nice for presentation)
+bt %>%
+  ggplot(aes(model, RMSE)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title="RMSE distribution across folds (lower is better)",
+       x="", y="RMSE (log1p scale)")
+
+```
+
+
+```{r}
+stl_fit <- stl(y, s.window="periodic")
+autoplot(stl_fit)
+
+```
+```{r}
+par(mfrow=c(1,2))
+acf(y, main="ACF of log overnight stays")
+pacf(y, main="PACF of log overnight stays")
+par(mfrow=c(1,1))
+
+```
+
+
+```{r}
+fit_final <- Arima(y,
+                   order=c(0,1,1),
+                   seasonal=list(order=c(0,1,1), period=12),
+                   xreg=scale(X))
+
+checkresiduals(fit_final)
+
+```
+
+
+```{r}
+fc <- forecast(fit_final, xreg=scale(X), h=12)
+
+autoplot(fc) +
+  autolayer(y, series="Actual") +
+  labs(title="SARIMAX fit on full data")
+
+```
+```{r}
+# STL
+autoplot(stl(y, s.window="periodic"))
+
+# ACF/PACF original
+acf(y)
+pacf(y)
+
+# Residual diagnostics SARIMAX
+checkresiduals(fit_final)
+
+# Actual vs fitted
+autoplot(fitted(fit_final)) + autolayer(y)
+
+# Climate vs tourism
+df %>% 
+  ggplot(aes(temp_mean_C, expm1(y))) +
+  geom_point(alpha=.4) +
+  geom_smooth()
+
+```
+
+grnager test
+```{r}
+library(lmtest)
+
+y_log <- log1p(df$overnights)
+temp <- df$temp_mean_C
+prec <- df$precip_sum_mm
+
+# Seasonal difference (12) for monthly series
+dy <- diff(y_log, lag=12)
+dtemp <- diff(temp, lag=12)
+dprec <- diff(prec, lag=12)
+
+# Optional: also regular difference after seasonal differencing
+# dy <- diff(dy, lag=1)
+# dtemp <- diff(dtemp, lag=1)
+# dprec <- diff(dprec, lag=1)
+
+# Align (diff reduces length)
+dat_g <- na.omit(data.frame(dy=dy, dtemp=dtemp, dprec=dprec))
+
+# Choose lags (try 1..6 months; keep small)
+# H0: temp does NOT Granger-cause dy
+grangertest(dy ~ dtemp, order=3, data=dat_g)
+grangertest(dy ~ dprec, order=3, data=dat_g)
+
+# Multivariate version: temp causes dy controlling for precip
+grangertest(dy ~ dtemp + dprec, order=3, data=dat_g)
+
+```
+
+
+```{r}
+
+```
+
+```{r}
+library(dplyr)
+library(lubridate)
+library(forecast)
+library(ggplot2)
+
+# df must contain: date_month, overnights, temp_mean_C, precip_sum_mm, covid_dummy
+# y must be the ts(log1p(overnights)) used to fit fit_final
+
+# ----------------------------
+# 1) Training regressors + scaling info
+# ----------------------------
+X_train <- as.matrix(df %>% select(temp_mean_C, precip_sum_mm, covid_dummy))
+X_train_sc <- scale(X_train)
+
+X_center <- attr(X_train_sc, "scaled:center")
+X_scale  <- attr(X_train_sc, "scaled:scale")
+
+# If you did NOT fit fit_final using X_train_sc, refit it now:
+# fit_final <- Arima(y,
+#                    order=c(0,1,1),
+#                    seasonal=list(order=c(0,1,1), period=12),
+#                    xreg=X_train_sc,
+#                    method="ML")
+
+# ----------------------------
+# 2) Create 10-year future dates
+# ----------------------------
+h <- 120  # 10 years monthly
+last_date <- max(df$date_month)
+future_dates <- seq(last_date %m+% months(1), by="month", length.out=h)
+future_months <- month(future_dates)
+
+# ----------------------------
+# 3) Baseline climate = monthly climatology (no future data needed)
+# ----------------------------
+temp_clim <- tapply(df$temp_mean_C, month(df$date_month), mean, na.rm=TRUE)
+prec_clim <- tapply(df$precip_sum_mm, month(df$date_month), mean, na.rm=TRUE)
+
+X_future_base <- cbind(
+  temp_mean_C   = as.numeric(temp_clim[future_months]),
+  precip_sum_mm = as.numeric(prec_clim[future_months]),
+  covid_dummy   = rep(0, h)
+)
+
+colnames(X_future_base) <- colnames(X_train)
+
+# ----------------------------
+# 4) +2°C scenario
+# ----------------------------
+X_future_plus2 <- X_future_base
+X_future_plus2[, "temp_mean_C"] <- X_future_plus2[, "temp_mean_C"] + 2
+
+# ----------------------------
+# 5) Scale future X using TRAIN scaling
+# ----------------------------
+X_future_plus2_sc <- scale(X_future_plus2, center=X_center, scale=X_scale)
+
+# ----------------------------
+# 6) Forecast 10 years ahead under +2°C
+# ----------------------------
+fc_plus2_10y <- forecast(fit_final, xreg=X_future_plus2_sc, h=h)
+
+# ----------------------------
+# 7) Plot on log scale (same style as your original)
+# ----------------------------
+autoplot(fc_plus2_10y, series="+2°C scenario (10y)") +
+  autolayer(y, series="Actual") +
+  labs(
+    title="SARIMAX forecast for next 10 years under +2°C warming (climatology baseline)",
+    x="Time",
+    y="y = log1p(overnight stays)"
+  ) +
+  guides(colour=guide_legend(title="Series"))
+
+```
+
+
+```{r}
+
+
+```
+
+
+```{r}
+h <- 120
+ramp <- seq(0, 2, length.out=h)  # 0°C now → +2°C in 10 years
+
+X_future_ramp2 <- X_future_base
+X_future_ramp2[, "temp_mean_C"] <- X_future_ramp2[, "temp_mean_C"] + ramp
+
+X_future_ramp2_sc <- scale(X_future_ramp2, center=X_center, scale=X_scale)
+
+fc_ramp2 <- forecast(fit_final, xreg=X_future_ramp2_sc, h=h)
+
+autoplot(fc_base, series="Baseline") +
+  autolayer(fc_ramp2$mean, series="Warming ramp to +2°C") +
+  autolayer(y, series="Actual") +
+  labs(title="SARIMAX: baseline vs warming ramp (10 years)",
+       y="y = log1p(overnights)", x="Time") +
+  guides(colour=guide_legend(title="Series"))
+
+```
+```{r}
+fit_sx2 <- Arima(
+  y,
+  order=c(1,1,1),
+  seasonal=list(order=c(1,1,1), period=12),
+  xreg=X_train_sc,
+  method="ML"
+)
+checkresiduals(fit_sx2)
+
+```
+```{r}
+# ============================
+# CHUNK 0 — INSTALL + LOAD PACKAGES
+# (run once)
+# ============================
+
+# Install (only if not already installed)
+pkgs <- c("tidyverse", "lubridate", "forecast", "MuMIn")
+to_install <- pkgs[!pkgs %in% rownames(installed.packages())]
+if(length(to_install) > 0) install.packages(to_install)
+
+# Load
+library(tidyverse)
+library(lubridate)
+library(forecast)
+library(MuMIn)   # provides AICc()
+```
+
+
+```{r}
+# ============================
+# CHUNK 1 — SARIMA (baseline) on SAME fold/window
+# ============================
+
+# Assumes you already defined: y, fold_ends, W, h, metrics()
+
+k <- 1
+end_train <- fold_ends[k]
+start_train <- end_train - W + 1
+
+y_tr <- ts(y[start_train:end_train], frequency=12)
+y_te <- y[(end_train+1):(end_train+h)]
+
+# Fit SARIMA
+m_sarima <- Arima(
+  y_tr,
+  order=c(0,1,1),
+  seasonal=list(order=c(0,1,1), period=12),
+  method="ML"
+)
+
+cat("\n================ SARIMA SUMMARY ================\n")
+print(summary(m_sarima))
+
+cat("\n================ SARIMA IC (same window) ================\n")
+print(data.frame(
+  model="SARIMA",
+  AIC=AIC(m_sarima),
+  AICc=MuMIn::AICc(m_sarima),
+  BIC=BIC(m_sarima)
+))
+
+# Forecast and metrics on SAME test horizon
+fc_sarima <- forecast(m_sarima, h=h)
+f_sarima <- as.numeric(fc_sarima$mean)
+
+cat("\n================ SARIMA TEST METRICS (same horizon) ================\n")
+print(metrics(y_te, f_sarima))
+
+# Optional residual diagnostics
+# checkresiduals(m_sarima)
+
+```
+
+
+```{r}
+# ============================
+# CHUNK 2 (FIXED) — SARIMAX on SAME fold/window (robust + fallback)
+# ============================
+
+library(forecast)
+
+k <- 1
+end_train <- fold_ends[k]
+start_train <- end_train - W + 1
+
+y_tr <- ts(y[start_train:end_train], frequency=12)
+y_te <- y[(end_train+1):(end_train+h)]
+
+X_tr_raw <- X[start_train:end_train, , drop=FALSE]
+X_te_raw <- X[(end_train+1):(end_train+h), , drop=FALSE]
+
+# 1) Drop constant columns in THIS fold
+is_const <- apply(X_tr_raw, 2, function(z) sd(z, na.rm=TRUE) == 0)
+X_tr_raw <- X_tr_raw[, !is_const, drop=FALSE]
+X_te_raw <- X_te_raw[, !is_const, drop=FALSE]
+
+# 2) Scale using TRAIN stats only
+mu <- colMeans(X_tr_raw, na.rm=TRUE)
+sdv <- apply(X_tr_raw, 2, sd, na.rm=TRUE)
+sdv[sdv == 0] <- 1
+
+X_tr <- scale(X_tr_raw, center=mu, scale=sdv)
+X_te <- scale(X_te_raw, center=mu, scale=sdv)
+
+# ---- Helper: safe fit with extra stability knobs ----
+safe_fit <- function(order, seas, method_name){
+  Arima(
+    y_tr,
+    order=order,
+    seasonal=list(order=seas, period=12),
+    xreg=X_tr,
+    method=method_name,
+    include.mean=FALSE,      # good practice with d/D differencing
+    transform.pars=TRUE      # enforce stationarity/invertibility transforms
+  )
+}
+
+# ---- Try a grid of models *and* methods ----
+candidates <- list(
+  list(order=c(0,1,1), seas=c(0,1,1)),
+  list(order=c(0,1,1), seas=c(1,1,1)),
+  list(order=c(1,1,1), seas=c(0,1,1)),
+  list(order=c(0,1,1), seas=c(1,1,0)),
+  list(order=c(1,1,0), seas=c(1,1,0))
+)
+methods <- c("ML", "CSS-ML")
+
+m_sarimax <- NULL
+f_sarimax <- rep(NA_real_, h)
+chosen <- NULL
+sarimax_failed <- TRUE
+
+for(spec in candidates){
+  for(meth in methods){
+
+    m_try <- try(safe_fit(spec$order, spec$seas, meth), silent=TRUE)
+    if(inherits(m_try, "try-error")) next
+
+    # Forecast mean only (intervals sometimes explode)
+    fc_try <- try(suppressWarnings(forecast(m_try, xreg=X_te, h=h)), silent=TRUE)
+    if(inherits(fc_try, "try-error")) next
+
+    f_try <- as.numeric(fc_try$mean)
+    if(any(!is.finite(f_try))) next
+
+    # success
+    m_sarimax <- m_try
+    f_sarimax <- f_try
+    chosen <- list(order=spec$order, seas=spec$seas, method=meth)
+    sarimax_failed <- FALSE
+    break
+  }
+  if(!sarimax_failed) break
+}
+
+# ---- If still failed: do NOT crash; fallback to SARIMA baseline for this fold ----
+if(sarimax_failed){
+  message("⚠️ SARIMAX unstable in this fold -> falling back to SARIMA mean forecast for metrics.")
+  # If you already computed f_sarima in SARIMA chunk, reuse it.
+  # Otherwise compute quickly here:
+  m_sarima <- Arima(
+    y_tr,
+    order=c(0,1,1),
+    seasonal=list(order=c(0,1,1), period=12),
+    method="ML"
+  )
+  f_sarimax <- as.numeric(forecast(m_sarima, h=h)$mean)
+} else {
+  cat("\nChosen SARIMAX spec:\n")
+  print(chosen)
+  cat("\nSARIMAX summary:\n")
+  print(summary(m_sarimax))
+}
+
+cat("\nSARIMAX TEST METRICS (same horizon):\n")
+print(metrics(y_te, f_sarimax))
+
+
+```
+
+
+```{r}
+df %>% ggplot(aes(temp_mean_C, expm1(y))) +
+  geom_point(alpha=.4) + geom_smooth()
+```
+
+
